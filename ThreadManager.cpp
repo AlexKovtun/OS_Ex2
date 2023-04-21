@@ -14,34 +14,23 @@ void ThreadManager::createThread (int tid, thread_entry_point entry_point)
 {
   auto *thread = new UThread (tid, entry_point);
   m_threads.insert ({tid, thread});
-  //m_threads.insert (std::pair<int,UThread*>(tid,thread));
+  m_ready_threads.push_back (thread);
 }
 
 void ThreadManager::switchToThread (int tid)
 {
-  if (m_current_thread->save_current_state () != 0)
-    {
-      //TODO: error?
-    }
-  UThread *thread = m_threads.at (tid);
-  sigjmp_buf &env = thread->getEnv ();
-  siglongjmp (env, 1);//TODO: check return value?
+  int retVal = sigsetjmp(m_current_thread->getEnv(), 1);
+  printf("%d\n",retVal);
+  fflush(stdout);
+  if(retVal == 1){
+    return;
+  }
+  m_current_thread = m_threads.at (tid);
+  //sigsetjmp(env, 1);// todo: figure out mask param
+  siglongjmp (m_current_thread->getEnv(), 1);//TODO: check return value?
+  return;
 }
 
-ThreadManager::ThreadManager (int num_quantums)
-{
-  //checks if there is no thread yet(if 0 terminated we terminate the program
-  if (m_threads.empty ())
-    {
-      auto* pt = new UThread(num_quantums);
-      m_threads.insert ({0, pt});
-      m_ready_threads.push (pt);
-      m_current_thread = pt;
-      installTimer();
-      setTimer(pt->getQuantumTime ());
-      initId();
-    }
-}
 
 int ThreadManager::getAvailableId ()
 {
@@ -53,6 +42,20 @@ int ThreadManager::getAvailableId ()
   return 0;
 }
 
+ThreadManager::ThreadManager (int num_quantums)
+{
+  //checks if there is no thread yet(if 0 terminated we terminate the program
+  if (m_threads.empty ())
+    {
+      auto* pt = new UThread(num_quantums);
+      m_threads.insert ({0, pt});
+      m_current_thread = pt;
+      installTimer();
+      setTimer(pt->getQuantumTime ());
+      initId();
+    }
+}
+
 void ThreadManager::initId ()
 {
   for(int i = 1; i < MAX_THREAD_NUM; ++i){
@@ -60,15 +63,20 @@ void ThreadManager::initId ()
   }
 }
 
-/************************* timer section                    */
+/************************* START OF HANDLING TIMER **************************/
 
 void timer_handler (int sig)
 {
   printf("we got here :)\n");
-  fflush (stdout);
-  //gotit = 1;
+
   auto* current_thread = thread_manager->getCurrentThread();
   printf ("Timer expired of %d\n", current_thread->getId());
+
+  thread_manager->pushReadyQ (current_thread);
+  auto * next_thread = thread_manager->popReadyQ();
+  thread_manager->switchToThread (next_thread->getId());
+  printf ("now starting running thread: %d\n", next_thread->getId());
+  fflush (stdout);
 }
 
 
@@ -88,7 +96,7 @@ int ThreadManager::setTimer(int quantum_usecs){
   timer.it_value.tv_sec = quantum_usecs; // first time interval, seconds part
   timer.it_value.tv_usec = 0;        // first time interval, microseconds part
 
-  // configure the timer to expire every 3 sec after that.
+//  // configure the timer to expire every 3 sec after that.
   timer.it_interval.tv_sec = 3;    // following time intervals, seconds part
   timer.it_interval.tv_usec = 0; // following time intervals, microseconds part
 
@@ -103,11 +111,24 @@ int ThreadManager::setTimer(int quantum_usecs){
 }
 
 
-/*************************                  */
+/************************* END OF HANDLING TIMER **************************/
 
 void ThreadManager::startRunning ()
 {
 
+}
+void ThreadManager::pushReadyQ (UThread* threadToInsert)
+{
+  m_ready_threads.push_back(threadToInsert);
+  threadToInsert->setState(THREAD_READY);
+}
+
+UThread *ThreadManager::popReadyQ ()
+{
+  m_current_thread = m_ready_threads.front();
+
+  m_ready_threads.pop_front();
+  return m_current_thread;
 }
 
 

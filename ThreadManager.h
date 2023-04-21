@@ -5,7 +5,8 @@
 #ifndef _THREADMANAGER_H_
 #define _THREADMANAGER_H_
 
-#include <queue>
+#include <vector>
+#include <list>
 #include <map>
 #include "UThread.h"
 #include "uthreads.h"
@@ -13,7 +14,7 @@
 class ThreadManager {
  private:
   std::map<int, UThread *> m_threads;
-  std::queue<UThread *> m_ready_threads;
+  std::list<UThread *> m_ready_threads;
   std::vector<int> m_available_id;
   UThread *m_current_thread;
 
@@ -27,6 +28,8 @@ class ThreadManager {
   void createThread (int tid, thread_entry_point entry_point);
   int getAvailableId ();
   void startRunning ();
+  void pushReadyQ(UThread* threadToInsert);
+  UThread * popReadyQ();
 
   struct sigaction sa = {0};
   struct itimerval timer = {0};

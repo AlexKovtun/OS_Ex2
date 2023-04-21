@@ -38,6 +38,7 @@ using thread_entry_point = void (*)();
 
 struct UThread {
   int getQuantumTime ();
+  void setState (int state);
  public:
   UThread (int num_quantums);
   /**

@@ -101,5 +101,9 @@ int UThread::getId ()
 {
   return m_tid;
 }
+void UThread::setState (int state)
+{
+  m_state = state;
+}
 
 
