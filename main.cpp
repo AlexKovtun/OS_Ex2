@@ -42,8 +42,8 @@ int main ()
 {
   std::cout << "Hello, World!" << std::endl;
   uthread_init( 2);
-//  std::cout << "          spawn f at (1) " << uthread_spawn(thread0) << std::endl;
-//  std::cout << "          spawn g at (2) " << uthread_spawn(thread1) << std::endl;
+  std::cout << "          spawn f at (1) " << uthread_spawn(thread0) << std::endl;
+  std::cout << "          spawn g at (2) " << uthread_spawn(thread1) << std::endl;
   for (;;)
     {
 

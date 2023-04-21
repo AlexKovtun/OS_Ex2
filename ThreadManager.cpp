@@ -34,9 +34,10 @@ void ThreadManager::switchToThread (int tid)
 
 int ThreadManager::getAvailableId ()
 {
-  for(const auto& id : m_available_id){
-    if(id == 0){
-      return id;
+  for(int i = 1; i < m_available_id.size(); ++i){
+    if(m_available_id[i] == 0){
+      m_available_id[i] = 1;
+      return i;
     }
   }
   return 0;
@@ -59,7 +60,7 @@ ThreadManager::ThreadManager (int num_quantums)
 void ThreadManager::initId ()
 {
   for(int i = 1; i < MAX_THREAD_NUM; ++i){
-    m_available_id.push_back(i);
+    m_available_id.push_back(0);
   }
 }
 
