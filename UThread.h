@@ -37,8 +37,9 @@ using thread_entry_point = void (*)();
 
 
 struct UThread {
+  int getQuantumTime ();
  public:
-  UThread ();
+  UThread (int num_quantums);
   /**
    * creating thread with stack and state
    * @param tid thread id that's free to capture
@@ -59,9 +60,12 @@ struct UThread {
 
   sigjmp_buf& getEnv();
 
+  int getId();
+
  private:
   int m_tid;
   int m_state;
+  int m_quantum_time;
   address_t  m_pc;
   address_t m_sp;
   char *m_stack;

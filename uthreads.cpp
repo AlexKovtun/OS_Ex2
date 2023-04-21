@@ -1,7 +1,7 @@
 #include "uthreads.h"
 #include "ThreadManager.h"
 
-ThreadManager *thread_manager = nullptr;
+
 
 
 /**
@@ -17,7 +17,8 @@ ThreadManager *thread_manager = nullptr;
  * @return On success, return 0. On failure, return -1.
 */
 int uthread_init(int quantum_usecs){
-  thread_manager = new ThreadManager();
+  thread_manager = new ThreadManager(quantum_usecs);
+  thread_manager->startRunning();
   return 0;
 }
 
@@ -37,4 +38,10 @@ int uthread_init(int quantum_usecs){
 int uthread_spawn(thread_entry_point entry_point){
   thread_manager->createThread(thread_manager->getAvailableId(),entry_point);
   return 0;
+}
+
+
+
+int uthread_get_tid(){
+  thread_manager->getCurrentId();
 }

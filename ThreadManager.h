@@ -13,19 +13,31 @@
 class ThreadManager {
  private:
   std::map<int, UThread *> m_threads;
-  std::queue<UThread> m_queue_threads;
+  std::queue<UThread *> m_ready_threads;
   std::vector<int> m_available_id;
-  UThread m_current_thread;
+  UThread *m_current_thread;
 
-  void initId();
+  void initId ();
 
  public:
   std::map<int, UThread *> getThreads ()
   { return m_threads; }
   void switchToThread (int tid);
-  ThreadManager ();
+  ThreadManager (int num_quantums);
   void createThread (int tid, thread_entry_point entry_point);
   int getAvailableId ();
+  void startRunning ();
+
+  struct sigaction sa = {0};
+  struct itimerval timer = {0};
+  int installTimer ();
+  int setTimer (int quantum_usecs);
+  int getCurrentId () { return m_current_thread->getId();};
+  UThread *getCurrentThread () { return m_current_thread;};
 };
 
-#endif //_THREADMANAGER_H_
+
+
+extern ThreadManager *thread_manager;
+#endif _THREADMANAGER_H_
+
