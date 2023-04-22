@@ -92,7 +92,7 @@ int uthread_resume(int tid){
 */
 int uthread_terminate (int tid)
 {
-  std::cout<< "terminating"<<std::endl;
+  //std::cout<< "terminating"<<std::endl;
   int result = thread_manager->terminateThread (tid);
   if (tid == 0)
   {

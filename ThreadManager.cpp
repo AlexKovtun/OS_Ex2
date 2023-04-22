@@ -9,6 +9,7 @@
 ThreadManager *thread_manager = nullptr;
 #endif _INSTANCE_MANAGER
 
+
 void ThreadManager::createThread (int tid, thread_entry_point entry_point)
 {
   auto *thread = new UThread (tid, entry_point);
@@ -224,8 +225,6 @@ int ThreadManager::terminateThread (int tid)
   m_threads.clear();
   m_ready_threads.clear();
 }
-
-
 
 
 
