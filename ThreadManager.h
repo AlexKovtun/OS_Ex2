@@ -37,6 +37,7 @@ class ThreadManager {
   int setTimer (int quantum_usecs);
   int getCurrentId () { return m_current_thread->getId();};
   UThread *getCurrentThread () { return m_current_thread;};
+  int terminateThread(int tid);
 };
 
 
