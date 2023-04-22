@@ -105,5 +105,9 @@ void UThread::setState (int state)
 {
   m_state = state;
 }
+bool UThread::getState ()
+{
+
+}
 
 
