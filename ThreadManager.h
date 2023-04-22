@@ -11,6 +11,10 @@
 #include "UThread.h"
 #include "uthreads.h"
 
+#define FAILURE -1
+#define SUCCESS 0
+
+
 class ThreadManager {
  private:
   std::map<int, UThread *> m_threads;
@@ -23,7 +27,7 @@ class ThreadManager {
  public:
   std::map<int, UThread *> getThreads ()
   { return m_threads; }
-  void switchToThread (int tid);
+  void switchThread ();
   ThreadManager (int num_quantums);
   void createThread (int tid, thread_entry_point entry_point);
   int getAvailableId ();
@@ -33,10 +37,17 @@ class ThreadManager {
 
   struct sigaction sa = {0};
   struct itimerval timer = {0};
+  int m_num_quantums;
   int installTimer ();
-  int setTimer (int quantum_usecs);
+  int setTimer ();
   int getCurrentId () { return m_current_thread->getId();};
   UThread *getCurrentThread () { return m_current_thread;};
+  int getQuantumTime () {return this->m_num_quantums;};
+  UThread *getThreadById ();
+  UThread *getThreadById (int tid);
+  int blockThread (int tid);
+  int block (UThread *thread);
+  int resume (int tid);
 };
 
 

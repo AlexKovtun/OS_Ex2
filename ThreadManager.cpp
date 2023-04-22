@@ -16,19 +16,15 @@ void ThreadManager::createThread (int tid, thread_entry_point entry_point)
   m_ready_threads.push_back (thread);
 }
 
-void ThreadManager::switchToThread (int tid)
+void ThreadManager::switchThread ()
 {
   int retVal = sigsetjmp(m_current_thread->getEnv (), 1);
-  printf ("%d\n", retVal);
-  fflush (stdout);
   if (retVal == 1)
     {
       return;
     }
-  m_current_thread = m_threads.at (tid);
-  //sigsetjmp(env, 1);// todo: figure out mask param
+  this->popReadyQ ();
   siglongjmp (m_current_thread->getEnv (), 1);//TODO: check return value?
-  return;
 }
 
 int ThreadManager::getAvailableId ()
@@ -49,11 +45,12 @@ ThreadManager::ThreadManager (int num_quantums)
   //checks if there is no thread yet(if 0 terminated we terminate the program
   if (m_threads.empty ())
     {
-      auto *pt = new UThread (num_quantums);
+      auto *pt = new UThread ();
       m_threads.insert ({0, pt});
       m_current_thread = pt;
+      m_num_quantums = num_quantums;
       installTimer ();
-      setTimer (pt->getQuantumTime ());
+      setTimer ();
       initId ();
     }
 }
@@ -71,15 +68,12 @@ void ThreadManager::initId ()
 void timer_handler (int sig)
 {
   printf ("we got here :)\n");
-
   auto *current_thread = thread_manager->getCurrentThread ();
   printf ("Timer expired of %d\n", current_thread->getId ());
 
   thread_manager->pushReadyQ (current_thread);
-  auto *next_thread = thread_manager->popReadyQ ();
-  thread_manager->switchToThread (next_thread->getId ());
-  printf ("now starting running thread: %d\n", next_thread->getId ());
-  fflush (stdout);
+  thread_manager->switchThread ();
+
 }
 
 int ThreadManager::installTimer ()
@@ -92,22 +86,22 @@ int ThreadManager::installTimer ()
       printf ("the sigaction error reason is\n");
       return -1;
     }
+  return 0;
 }
 
-int ThreadManager::setTimer (int quantum_usecs)
+int ThreadManager::setTimer ()
 {
   // Configure the timer to expire after 1 sec... */
-  timer.it_value.tv_sec = quantum_usecs; // first time interval, seconds part
+  timer.it_value.tv_sec = m_num_quantums; // first time interval, seconds part
   timer.it_value.tv_usec = 0;        // first time interval, microseconds part
 
 //  // configure the timer to expire every 3 sec after that.
-  timer.it_interval.tv_sec = 3;    // following time intervals, seconds part
+  timer.it_interval.tv_sec = 1;    // following time intervals, seconds part
   timer.it_interval.tv_usec = 0; // following time intervals, microseconds part
 
   // Start a virtual timer. It counts down whenever this process is executing.
   if (setitimer (ITIMER_VIRTUAL, &timer, NULL))
     {
-      //printf ("the timer error reason is: %s\n", strerror (errno));
       printf ("timer error.");
       return -1;
     }
@@ -122,14 +116,14 @@ void ThreadManager::startRunning ()
 }
 void ThreadManager::pushReadyQ (UThread *threadToInsert)
 {
-  m_ready_threads.push_back (threadToInsert);
   threadToInsert->setState (THREAD_READY);
+  m_ready_threads.push_back (threadToInsert);
 }
 
 UThread *ThreadManager::popReadyQ ()
 {
   m_current_thread = m_ready_threads.front ();
-
+  m_current_thread->setState (THREAD_RUNNING);
   m_ready_threads.pop_front ();
   return m_current_thread;
 }
@@ -144,7 +138,8 @@ UThread *ThreadManager::getThreadById (int tid)
   return nullptr;
 }
 
-int ThreadManager::block (int tid)
+/************************* START OF HANDLING BLOCK **************************/
+int ThreadManager::blockThread (int tid)
 {
   UThread *thread_to_block = getThreadById (tid);
   if (thread_to_block == nullptr)
@@ -160,15 +155,50 @@ int ThreadManager::block (int tid)
       // get current timer state
       // save it
       // when return to ready list, resume the  time that left
-      // switch to neext thread on the queue_ready_list
-
+      // switch to next thread on the queue_ready_list
+      block (thread_to_block);
     }
   else if (thread_to_block->getState () == THREAD_READY)
     {
-      //pop from queue, set state to blocked
+      block (thread_to_block);
+      thread_to_block->setState (THREAD_BLOCKED);
+      m_ready_threads.remove (thread_to_block);
     }
   return 0;
 }
+
+void catch_int (int sigNum)
+{
+  // Install catch_int as the signal handler for SIGINT.
+
+  itimerval tmp;
+  getitimer (ITIMER_VIRTUAL, &tmp);
+  printf (" Don't do that!\n");
+  fflush (stdout);
+}
+
+int ThreadManager::block (UThread *thread)
+{
+  sa.sa_handler = &catch_int;
+  if (sigaction (SIGINT, &sa, NULL) < 0)
+    {
+      printf ("sigaction error.");
+    }
+  return 0;
+}
+int ThreadManager::resume (int tid)
+{
+  UThread *resume_thread = getThreadById (tid);
+  if (resume_thread != nullptr)
+    {
+      resume_thread->setState (THREAD_READY);
+      m_ready_threads.push_back (resume_thread);
+      return SUCCESS;
+    }
+  return FAILURE;
+}
+
+/************************* END OF HANDLING BLOCK **************************/
 
 
 

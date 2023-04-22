@@ -53,14 +53,12 @@ address_t translate_address(address_t addr)
 
 
 //this will create  the main thread
-UThread::UThread (int num_quantums)
+UThread::UThread ()
 {
   //TODO: check existence of main thread
   this->m_tid = 0;
   this->m_stack_size = STACK_SIZE;
-  this->m_stack = new char[STACK_SIZE];
   this->m_state = THREAD_RUNNING;
-  this->m_quantum_time = num_quantums;
   sigsetjmp(this->m_env, 1);
 }
 
@@ -71,15 +69,16 @@ UThread::UThread (int tid, thread_entry_point entry_point)
   this->m_stack = new char[STACK_SIZE];
   this->m_state = THREAD_READY;
 
-  this->m_sp = (address_t) this->m_stack + STACK_SIZE - sizeof(address_t);
-  this->m_pc = (address_t) entry_point;
+  auto pc = (address_t) entry_point;
+  address_t sp = (address_t) this->m_stack + STACK_SIZE - sizeof(address_t);
+
   // initializes env[tid] to use the right stack, and to run from the
   // function 'entry_point', when we'll use siglongjmp to jump into the thread.
 
   sigsetjmp(this->m_env, 1);
-  (this->m_env->__jmpbuf)[JB_SP] = translate_address(this->m_sp);
-  (this->m_env->__jmpbuf)[JB_PC] = translate_address(this->m_sp);
-  sigemptyset(&this->m_env->__saved_mask);
+  (this->m_env->__jmpbuf)[JB_SP] = translate_address(sp);
+  (this->m_env->__jmpbuf)[JB_PC] = translate_address(pc);
+  sigemptyset(&this->m_env->__saved_mask);//TODO: check success
 }
 UThread::~UThread ()
 {
@@ -93,10 +92,6 @@ sigjmp_buf& UThread::getEnv ()
 {
   return this->m_env;
 }
-int UThread::getQuantumTime ()
-{
-  return this->m_quantum_time;
-}
 int UThread::getId ()
 {
   return m_tid;
@@ -105,9 +100,9 @@ void UThread::setState (int state)
 {
   m_state = state;
 }
-bool UThread::getState ()
+int UThread::getState ()
 {
-
+  return m_state;
 }
 
 
