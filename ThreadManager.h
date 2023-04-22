@@ -48,6 +48,7 @@ class ThreadManager {
   int blockThread (int tid);
   int block (UThread *thread);
   int resume (int tid);
+  int terminateThread(int tid);
 };
 
 

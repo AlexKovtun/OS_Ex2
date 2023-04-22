@@ -116,8 +116,8 @@ void ThreadManager::startRunning ()
 }
 void ThreadManager::pushReadyQ (UThread *threadToInsert)
 {
-  threadToInsert->setState (THREAD_READY);
-  m_ready_threads.push_back (threadToInsert);
+  m_ready_threads.push_back(threadToInsert);
+  threadToInsert->setState(THREAD_READY);
 }
 
 UThread *ThreadManager::popReadyQ ()
@@ -199,6 +199,34 @@ int ThreadManager::resume (int tid)
 }
 
 /************************* END OF HANDLING BLOCK **************************/
+
+
+int ThreadManager::terminateThread (int tid)
+{
+//TODO maybe this is error
+  if (tid < 0 || tid > MAX_THREAD_NUM)
+  {
+    return -1;
+  }
+  if (tid != 0)
+  {
+    UThread *u_thread = m_threads.at (tid); //if tid not in map throw error
+    m_available_id[tid] = 0;
+    m_ready_threads.remove (u_thread);
+    delete (u_thread);
+    m_threads.erase (tid);
+    return 0; //TODO: change
+  }
+  for (auto const &thrd: m_threads)
+  {
+    delete (thrd.second);
+  }
+  m_threads.clear();
+  m_ready_threads.clear();
+}
+
+
+
 
 
 

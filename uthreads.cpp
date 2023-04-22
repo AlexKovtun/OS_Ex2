@@ -78,3 +78,29 @@ int uthread_block(int tid){
 int uthread_resume(int tid){
   thread_manager->resume(tid);
 }
+
+
+/**
+ * @brief Terminates the thread with ID tid and deletes it from all relevant control structures.
+ *
+ * All the resources allocated by the library for this thread should be released. If no thread with ID tid exists it
+ * is considered an error. Terminating the main thread (tid == 0) will result in the termination of the entire
+ * process using exit(0) (after releasing the assigned library memory).
+ *
+ * @return The function returns 0 if the thread was successfully terminated and -1 otherwise. If a thread terminates
+ * itself or the main thread is terminated, the function does not return.
+*/
+int uthread_terminate (int tid)
+{
+  std::cout<< "terminating"<<std::endl;
+  int result = thread_manager->terminateThread (tid);
+  if (tid == 0)
+  {
+    delete (thread_manager);
+    exit (0);
+  }
+  if (tid != thread_manager->getCurrentId ())
+  {
+    return result;
+  }
+}
