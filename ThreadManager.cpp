@@ -50,6 +50,7 @@ ThreadManager::ThreadManager (int num_quantums)
       m_threads.insert ({0, pt});
       m_current_thread = pt;
       m_num_quantums = num_quantums;
+      m_total_num_of_quantum = 1;
       installTimer ();
       setTimer ();
       initId ();

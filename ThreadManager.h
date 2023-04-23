@@ -23,6 +23,7 @@ class ThreadManager {
   std::vector<int> m_available_id;
   UThread *m_current_thread;
   int m_total_num_of_quantum;
+  int m_num_quantums;
 
 
   void initId ();
@@ -39,7 +40,7 @@ class ThreadManager {
 
   struct sigaction sa = {0};
   struct itimerval timer = {0};
-  int m_num_quantums;
+
   int installTimer ();
   int setTimer ();
   int resetTimer();

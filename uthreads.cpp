@@ -127,3 +127,27 @@ int uthread_sleep(int num_quantums){
   thread_manager->sleepThread(num_quantums);
   return SUCCESS;
 }
+
+
+
+/**
+ * @brief Returns the total number of quantums since the library was initialized, including the current quantum.
+ *
+ * Right after the call to uthread_init, the value should be 1.
+ * Each time a new quantum starts, regardless of the reason, this number should be increased by 1.
+ *
+ * @return The total number of quantums.
+*/
+int uthread_get_total_quantums();
+
+
+/**
+ * @brief Returns the number of quantums the thread with ID tid was in RUNNING state.
+ *
+ * On the first time a thread runs, the function should return 1. Every additional quantum that the thread starts should
+ * increase this value by 1 (so if the thread with ID tid is in RUNNING state when this function is called, include
+ * also the current quantum). If no thread with ID tid exists it is considered an error.
+ *
+ * @return On success, return the number of quantums of the thread with ID tid. On failure, return -1.
+*/
+int uthread_get_quantums(int tid);
