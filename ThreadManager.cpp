@@ -9,11 +9,12 @@
 ThreadManager *thread_manager = nullptr;
 #endif _INSTANCE_MANAGER
 
-void ThreadManager::createThread (int tid, thread_entry_point entry_point)
+int ThreadManager::createThread (int tid, thread_entry_point entry_point)
 {
   auto *thread = new UThread (tid, entry_point);
   m_threads.insert ({tid, thread});
   m_ready_threads.push_back (thread);
+  return tid;
 }
 
 void ThreadManager::switchThread ()
@@ -76,7 +77,6 @@ void timer_handler (int sig)
 {
   thread_manager->timerStatus(SIG_BLOCK);
   auto *current_thread = thread_manager->getCurrentThread ();
-  printf ("Timer expired of %d\n", current_thread->getId ());
 
   thread_manager->pushReadyQ (current_thread);
   thread_manager->switchThread ();

@@ -33,7 +33,7 @@ class ThreadManager {
   std::map<int, UThread *> getThreads () { return m_threads; }
   void switchThread ();
   ThreadManager (int num_quantums);
-  void createThread (int tid, thread_entry_point entry_point);
+  int createThread (int tid, thread_entry_point entry_point);
   int getAvailableId ();
   void startRunning ();
   void pushReadyQ(UThread* threadToInsert);

@@ -36,9 +36,9 @@ int uthread_init (int quantum_usecs)
 int uthread_spawn (thread_entry_point entry_point)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  thread_manager->createThread (thread_manager->getAvailableId (), entry_point);
+  int tid = thread_manager->createThread (thread_manager->getAvailableId (), entry_point);
   thread_manager->timerStatus (SIG_UNBLOCK);
-  return thread_manager->getCurrentId();
+  return tid;
 }
 
 int uthread_get_tid ()
@@ -97,17 +97,21 @@ int uthread_resume (int tid)
 */
 int uthread_terminate (int tid)
 {
+  thread_manager->timerStatus (SIG_BLOCK);
   //std::cout<< "terminating"<<std::endl;
   int result = thread_manager->terminateThread (tid);
   if (tid == 0)
   {
     delete (thread_manager);
+      thread_manager->timerStatus (SIG_UNBLOCK);
     exit (0);
   }
   if (tid != thread_manager->getCurrentId ())
   {
     return result;
   }
+  thread_manager->timerStatus (SIG_BLOCK);
+  return 0;
 }
 
 /**
