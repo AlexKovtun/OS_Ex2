@@ -24,6 +24,8 @@ void ThreadManager::switchThread ()
     {
       return;
     }
+  m_total_num_of_quantum++;
+  m_current_thread->upRunningQuantum();
   this->popReadyQ ();
   siglongjmp (m_current_thread->getEnv (), 1);//TODO: check return value?
 }

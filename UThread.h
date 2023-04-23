@@ -52,6 +52,8 @@ struct UThread {
   sigjmp_buf& getEnv();
   int getId();
   int getQuantumSleep ();
+  int getRunningQuantum();
+  int upRunningQuantum();
 
  private:
   int m_tid;
@@ -60,5 +62,6 @@ struct UThread {
   int m_stack_size;
   int m_quantum_left_sleep;
   sigjmp_buf m_env;
+  int running_quantum_time;
 };
 #endif //_UTHREAD_H_

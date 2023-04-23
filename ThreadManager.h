@@ -55,7 +55,7 @@ class ThreadManager {
   int terminateThread(int tid);
   void sleepThread (int num_quantums);
   void updateSleepTime();
-
+  int getTotalQuantum(){return this->m_total_num_of_quantum;};
 };
 
 

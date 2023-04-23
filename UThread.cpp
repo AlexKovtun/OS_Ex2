@@ -117,4 +117,10 @@ void UThread::setSleepTime (int num_quantums)
   m_quantum_left_sleep = num_quantums;
 }
 
+int UThread::getRunningQuantum(){
+  return running_quantum_time;
+}
+int UThread::upRunningQuantum(){
+  running_quantum_time++;
+}
 
