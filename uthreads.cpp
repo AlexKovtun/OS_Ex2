@@ -35,8 +35,10 @@ int uthread_init (int quantum_usecs)
 
 int uthread_spawn (thread_entry_point entry_point)
 {
+  thread_manager->timerStatus (SIG_BLOCK);
   thread_manager->createThread (thread_manager->getAvailableId (), entry_point);
-  return 0;
+  thread_manager->timerStatus (SIG_UNBLOCK);
+  return thread_manager->getCurrentId();
 }
 
 int uthread_get_tid ()
@@ -57,11 +59,15 @@ int uthread_get_tid ()
 
 int uthread_block (int tid)
 {
+  thread_manager->timerStatus (SIG_BLOCK);
   if (tid == 0)
   {
+      thread_manager->timerStatus (SIG_UNBLOCK);
     return FAILURE;
   }
   thread_manager->blockThread (tid);
+  thread_manager->timerStatus (SIG_UNBLOCK);
+  return SUCCESS;
 }
 
 /**
@@ -74,7 +80,9 @@ int uthread_block (int tid)
 */
 int uthread_resume (int tid)
 {
+  thread_manager->timerStatus (SIG_BLOCK);
   thread_manager->resume (tid);
+  thread_manager->timerStatus (SIG_UNBLOCK);
 }
 
 /**
@@ -117,11 +125,13 @@ int uthread_terminate (int tid)
 */
 int uthread_sleep (int num_quantums)
 {
+  thread_manager->timerStatus (SIG_BLOCK);
   if (thread_manager->getCurrentId () == 0)
   {
     return FAILURE;
   }
-  thread_manager->sleepThread (num_quantums);
+
+  thread_manager->threadSleep (num_quantums);
   return SUCCESS;
 }
 
@@ -149,6 +159,8 @@ int uthread_get_total_quantums ()
 */
 int uthread_get_quantums (int tid)
 {
+  thread_manager->timerStatus (SIG_BLOCK);
   UThread* u_thread = thread_manager->getThreadById(tid);
+  thread_manager->timerStatus (SIG_UNBLOCK);
   return u_thread->getRunningQuantum();
 }

@@ -24,6 +24,7 @@ class ThreadManager {
   UThread *m_current_thread;
   int m_total_num_of_quantum;
   int m_num_quantums;
+  sigset_t set;
 
 
   void initId ();
@@ -53,9 +54,10 @@ class ThreadManager {
   int block (UThread *thread);
   int resume (int tid);
   int terminateThread(int tid);
-  void sleepThread (int num_quantums);
+  void threadSleep (int num_quantums);
   void updateSleepTime();
   int getTotalQuantum(){return this->m_total_num_of_quantum;};
+  void timerStatus (int block_flag);
 };
 
 

@@ -27,6 +27,7 @@ void ThreadManager::switchThread ()
   m_total_num_of_quantum++;
   m_current_thread->upRunningQuantum();
   this->popReadyQ ();
+  timerStatus(SIG_UNBLOCK);
   siglongjmp (m_current_thread->getEnv (), 1);//TODO: check return value?
 }
 
@@ -56,6 +57,8 @@ ThreadManager::ThreadManager (int num_quantums)
       installTimer ();
       setTimer ();
       initId ();
+      sigemptyset(&set);
+      sigaddset(&set,SIGVTALRM);
     }
 }
 
@@ -71,6 +74,7 @@ void ThreadManager::initId ()
 
 void timer_handler (int sig)
 {
+  thread_manager->timerStatus(SIG_BLOCK);
   auto *current_thread = thread_manager->getCurrentThread ();
   printf ("Timer expired of %d\n", current_thread->getId ());
 
@@ -95,12 +99,12 @@ int ThreadManager::installTimer ()
 int ThreadManager::setTimer ()
 {
   // Configure the timer to expire after 1 sec... */
-  timer.it_value.tv_sec = m_num_quantums; // first time interval, seconds part
-  timer.it_value.tv_usec = 0;        // first time interval, microseconds part
+  timer.it_value.tv_sec = 0; // first time interval, seconds part
+  timer.it_value.tv_usec = m_num_quantums;        // first time interval, microseconds part
 
 //  // configure the timer to expire every 3 sec after that.
-  timer.it_interval.tv_sec = 1;    // following time intervals, seconds part
-  timer.it_interval.tv_usec = 0; // following time intervals, microseconds part
+  timer.it_interval.tv_sec = 0;    // following time intervals, seconds part
+  timer.it_interval.tv_usec = m_num_quantums; // following time intervals, microseconds part
 
   // Start a virtual timer. It counts down whenever this process is executing.
   return resetTimer ();
@@ -150,6 +154,7 @@ UThread *ThreadManager::getThreadById (int tid)
 /************************* START OF HANDLING BLOCK **************************/
 int ThreadManager::blockThread (int tid)
 {
+  timerStatus (SIG_BLOCK);
   UThread *thread_to_block = getThreadById (tid);
   if (thread_to_block == nullptr)
     {
@@ -175,6 +180,7 @@ int ThreadManager::blockThread (int tid)
     {
       thread_to_block->setState (THREAD_SLEEPING_BLOCKED);
     }
+  timerStatus (SIG_UNBLOCK);
   return 0;
 }
 
@@ -197,6 +203,7 @@ int ThreadManager::block (UThread *thread)
     }
   return 0;
 }
+
 int ThreadManager::resume (int tid)
 {
   //TODO: handle multiple pushing the same thread
@@ -237,13 +244,15 @@ int ThreadManager::terminateThread (int tid)
   m_ready_threads.clear ();
 }
 
-void ThreadManager::sleepThread (int num_quantums)
+void ThreadManager::threadSleep (int num_quantums)
 {
+  timerStatus (SIG_BLOCK);
   m_current_thread->setState (THREAD_SLEEPING);
   m_current_thread->setSleepTime(num_quantums);
   m_sleeping_threads.insert ({m_current_thread->getId(), m_current_thread});
   switchThread ();
   resetTimer ();
+  timerStatus(SIG_UNBLOCK);
 }
 
 void ThreadManager::updateSleepTime ()
@@ -270,6 +279,14 @@ void ThreadManager::updateSleepTime ()
       m_sleeping_threads.erase (tid);
       auto *thread_to_return = getThreadById (tid);
       pushReadyQ (thread_to_return);
+    }
+}
+
+
+void ThreadManager::timerStatus(int block_flag)
+{
+  if(sigprocmask(block_flag, &set, nullptr)){
+      exit(1);//TODO: error message
     }
 }
 
