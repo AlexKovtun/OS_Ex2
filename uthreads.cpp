@@ -104,3 +104,26 @@ int uthread_terminate (int tid)
     return result;
   }
 }
+
+
+
+/**
+ * @brief Blocks the RUNNING thread for num_quantums quantums.
+ *
+ * Immediately after the RUNNING thread transitions to the BLOCKED state a scheduling decision should be made.
+ * After the sleeping time is over, the thread should go back to the end of the THREAD_READY queue.
+ * If the thread which was just RUNNING should also be added to the THREAD_READY queue, or if multiple threads wake up
+ * at the same time, the order in which they're added to the end of the THREAD_READY queue doesn't matter.
+ * The number of quantums refers to the number of times a new quantum starts, regardless of the reason. Specifically,
+ * the quantum of the thread which has made the call to uthread_sleep isn’t counted.
+ * It is considered an error if the main thread (tid == 0) calls this function.
+ *
+ * @return On success, return 0. On failure, return -1.
+*/
+int uthread_sleep(int num_quantums){
+  if(thread_manager->getCurrentId() == 0){
+    return FAILURE;
+  }
+  thread_manager->sleepThread(num_quantums);
+  return SUCCESS;
+}
