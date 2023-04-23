@@ -105,4 +105,16 @@ int UThread::getState ()
   return m_state;
 }
 
+int UThread::getQuantumSleep(){
+  return m_quantum_left_sleep;
+}
+void UThread::decreaseTimeLeft ()
+{
+  --m_quantum_left_sleep;
+}
+void UThread::setSleepTime (int num_quantums)
+{
+  m_quantum_left_sleep = num_quantums;
+}
+
 

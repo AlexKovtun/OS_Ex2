@@ -9,7 +9,6 @@
 ThreadManager *thread_manager = nullptr;
 #endif _INSTANCE_MANAGER
 
-
 void ThreadManager::createThread (int tid, thread_entry_point entry_point)
 {
   auto *thread = new UThread (tid, entry_point);
@@ -19,6 +18,7 @@ void ThreadManager::createThread (int tid, thread_entry_point entry_point)
 
 void ThreadManager::switchThread ()
 {
+  thread_manager->updateSleepTime ();
   int retVal = sigsetjmp(m_current_thread->getEnv (), 1);
   if (retVal == 1)
     {
@@ -68,13 +68,12 @@ void ThreadManager::initId ()
 
 void timer_handler (int sig)
 {
-  printf ("we got here :)\n");
   auto *current_thread = thread_manager->getCurrentThread ();
   printf ("Timer expired of %d\n", current_thread->getId ());
 
   thread_manager->pushReadyQ (current_thread);
   thread_manager->switchThread ();
-
+  thread_manager->resetTimer ();
 }
 
 int ThreadManager::installTimer ()
@@ -101,6 +100,12 @@ int ThreadManager::setTimer ()
   timer.it_interval.tv_usec = 0; // following time intervals, microseconds part
 
   // Start a virtual timer. It counts down whenever this process is executing.
+  return resetTimer ();
+}
+
+int ThreadManager::resetTimer ()
+{
+  // Start a virtual timer. It counts down whenever this process is executing.
   if (setitimer (ITIMER_VIRTUAL, &timer, NULL))
     {
       printf ("timer error.");
@@ -117,8 +122,8 @@ void ThreadManager::startRunning ()
 }
 void ThreadManager::pushReadyQ (UThread *threadToInsert)
 {
-  m_ready_threads.push_back(threadToInsert);
-  threadToInsert->setState(THREAD_READY);
+  m_ready_threads.push_back (threadToInsert);
+  threadToInsert->setState (THREAD_READY);
 }
 
 UThread *ThreadManager::popReadyQ ()
@@ -147,23 +152,25 @@ int ThreadManager::blockThread (int tid)
     {
       return FAILURE;
     }
-  if (thread_to_block->getState () == THREAD_BLOCKED)
+  int block_state = thread_to_block->getState ();
+  if (block_state == THREAD_BLOCKED || block_state == THREAD_SLEEPING_BLOCKED)
     {
       return 0;
     }
-  if (thread_to_block->getState () == THREAD_RUNNING)
+  if (block_state == THREAD_RUNNING)
     {
-      // get current timer state
-      // save it
-      // when return to ready list, resume the  time that left
-      // switch to next thread on the queue_ready_list
-      block (thread_to_block);
-    }
-  else if (thread_to_block->getState () == THREAD_READY)
-    {
-      block (thread_to_block);
       thread_to_block->setState (THREAD_BLOCKED);
       m_ready_threads.remove (thread_to_block);
+      switchThread ();
+      resetTimer ();
+    }
+  else if (block_state == THREAD_READY)
+    {
+      m_ready_threads.remove (thread_to_block);
+    }
+  else if (block_state == THREAD_SLEEPING)
+    {
+      thread_to_block->setState (THREAD_SLEEPING_BLOCKED);
     }
   return 0;
 }
@@ -172,8 +179,8 @@ void catch_int (int sigNum)
 {
   // Install catch_int as the signal handler for SIGINT.
 
-  itimerval tmp;
-  getitimer (ITIMER_VIRTUAL, &tmp);
+  //itimerval tmp;
+  //getitimer (ITIMER_VIRTUAL, &);
   printf (" Don't do that!\n");
   fflush (stdout);
 }
@@ -189,6 +196,7 @@ int ThreadManager::block (UThread *thread)
 }
 int ThreadManager::resume (int tid)
 {
+  //TODO: handle multiple pushing the same thread
   UThread *resume_thread = getThreadById (tid);
   if (resume_thread != nullptr)
     {
@@ -206,25 +214,62 @@ int ThreadManager::terminateThread (int tid)
 {
 //TODO maybe this is error
   if (tid < 0 || tid > MAX_THREAD_NUM)
-  {
-    return -1;
-  }
+    {
+      return -1;
+    }
   if (tid != 0)
-  {
-    UThread *u_thread = m_threads.at (tid); //if tid not in map throw error
-    m_available_id[tid] = 0;
-    m_ready_threads.remove (u_thread);
-    delete (u_thread);
-    m_threads.erase (tid);
-    return 0; //TODO: change
-  }
+    {
+      UThread *u_thread = m_threads.at (tid); //if tid not in map throw error
+      m_available_id[tid] = 0;
+      m_ready_threads.remove (u_thread);
+      delete (u_thread);
+      m_threads.erase (tid);
+      return 0; //TODO: change
+    }
   for (auto const &thrd: m_threads)
-  {
-    delete (thrd.second);
-  }
-  m_threads.clear();
-  m_ready_threads.clear();
+    {
+      delete (thrd.second);
+    }
+  m_threads.clear ();
+  m_ready_threads.clear ();
 }
+
+void ThreadManager::sleepThread (int num_quantums)
+{
+  m_current_thread->setState (THREAD_SLEEPING);
+  m_current_thread->setSleepTime(num_quantums);
+  m_sleeping_threads.insert ({m_current_thread->getId(), m_current_thread});
+  switchThread ();
+  resetTimer ();
+}
+
+void ThreadManager::updateSleepTime ()
+{
+  std::list<int> return_back;
+  for (const auto &thread: m_sleeping_threads)
+    {
+      thread.second->decreaseTimeLeft ();
+      if (thread.second->getQuantumSleep () <= 0)
+        {
+          if (thread.second->getState () != THREAD_SLEEPING_BLOCKED)
+            {
+              thread.second->setState (THREAD_READY);
+              return_back.push_back (thread.first);
+            }
+          else
+            {
+              thread.second->setState (THREAD_BLOCKED);
+            }
+        }
+    }
+  for (const auto &tid: return_back)
+    {
+      m_sleeping_threads.erase (tid);
+      auto *thread_to_return = getThreadById (tid);
+      pushReadyQ (thread_to_return);
+    }
+}
+
 
 
 

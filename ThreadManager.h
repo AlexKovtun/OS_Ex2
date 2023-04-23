@@ -18,15 +18,17 @@
 class ThreadManager {
  private:
   std::map<int, UThread *> m_threads;
+  std::map<int, UThread *> m_sleeping_threads;
   std::list<UThread *> m_ready_threads;
   std::vector<int> m_available_id;
   UThread *m_current_thread;
+  int m_total_num_of_quantum;
+
 
   void initId ();
 
  public:
-  std::map<int, UThread *> getThreads ()
-  { return m_threads; }
+  std::map<int, UThread *> getThreads () { return m_threads; }
   void switchThread ();
   ThreadManager (int num_quantums);
   void createThread (int tid, thread_entry_point entry_point);
@@ -40,6 +42,7 @@ class ThreadManager {
   int m_num_quantums;
   int installTimer ();
   int setTimer ();
+  int resetTimer();
   int getCurrentId () { return m_current_thread->getId();};
   UThread *getCurrentThread () { return m_current_thread;};
   int getQuantumTime () {return this->m_num_quantums;};
@@ -49,6 +52,9 @@ class ThreadManager {
   int block (UThread *thread);
   int resume (int tid);
   int terminateThread(int tid);
+  void sleepThread (int num_quantums);
+  void updateSleepTime();
+
 };
 
 
