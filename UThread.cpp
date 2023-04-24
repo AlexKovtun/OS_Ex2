@@ -59,6 +59,7 @@ UThread::UThread ()
   this->m_tid = 0;
   this->m_stack_size = STACK_SIZE;
   this->m_state = THREAD_RUNNING;
+  this->running_quantum_time = 1;
   sigsetjmp(this->m_env, 1);
 }
 
@@ -68,7 +69,7 @@ UThread::UThread (int tid, thread_entry_point entry_point)
   this->m_stack_size = STACK_SIZE;
   this->m_stack = new char[STACK_SIZE];
   this->m_state = THREAD_READY;
-
+  this->running_quantum_time = 0;
   auto pc = (address_t) entry_point;
   address_t sp = (address_t) this->m_stack + STACK_SIZE - sizeof(address_t);
 

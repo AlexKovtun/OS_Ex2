@@ -16,7 +16,6 @@
 int uthread_init (int quantum_usecs)
 {
   thread_manager = new ThreadManager (quantum_usecs);
-  thread_manager->startRunning ();
   return 0;
 }
 
@@ -43,7 +42,7 @@ int uthread_spawn (thread_entry_point entry_point)
 
 int uthread_get_tid ()
 {
-  thread_manager->getCurrentId ();
+  return thread_manager->getCurrentId ();
 }
 
 /**
@@ -61,10 +60,10 @@ int uthread_block (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
   if (tid == 0)
-  {
+    {
       thread_manager->timerStatus (SIG_UNBLOCK);
-    return FAILURE;
-  }
+      return FAILURE;
+    }
   thread_manager->blockThread (tid);
   thread_manager->timerStatus (SIG_UNBLOCK);
   return SUCCESS;
@@ -98,19 +97,19 @@ int uthread_resume (int tid)
 int uthread_terminate (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  //std::cout<< "terminating"<<std::endl;
   int result = thread_manager->terminateThread (tid);
   if (tid == 0)
-  {
-    delete (thread_manager);
+    {
+      delete (thread_manager);
       thread_manager->timerStatus (SIG_UNBLOCK);
-    exit (0);
-  }
+      exit (0);
+    }
   if (tid != thread_manager->getCurrentId ())
-  {
-    return result;
-  }
-  thread_manager->timerStatus (SIG_BLOCK);
+    {
+      thread_manager->timerStatus (SIG_UNBLOCK);
+      return result;
+    }
+  thread_manager->timerStatus (SIG_UNBLOCK);
   return 0;
 }
 
@@ -131,11 +130,13 @@ int uthread_sleep (int num_quantums)
 {
   thread_manager->timerStatus (SIG_BLOCK);
   if (thread_manager->getCurrentId () == 0)
-  {
-    return FAILURE;
-  }
+    {
+      thread_manager->timerStatus (SIG_UNBLOCK);
+      return FAILURE;
+    }
 
   thread_manager->threadSleep (num_quantums);
+  thread_manager->timerStatus (SIG_UNBLOCK);
   return SUCCESS;
 }
 
@@ -164,7 +165,10 @@ int uthread_get_total_quantums ()
 int uthread_get_quantums (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  UThread* u_thread = thread_manager->getThreadById(tid);
+  UThread *u_thread = thread_manager->getThreadById (tid);
   thread_manager->timerStatus (SIG_UNBLOCK);
-  return u_thread->getRunningQuantum();
+  if(u_thread == nullptr){
+    return FAILURE;
+  }
+  return u_thread->getRunningQuantum ();
 }

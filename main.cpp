@@ -1,212 +1,161 @@
-//#include <iostream>
-//#include <unistd.h>
-//#include "uthreads.h"
-//
-//void thread1(void)
-//{
-//  printf("Starting thread: %d\n",1);
-//  fflush (stdout);
-//  while (1){
-//  }
-//}
-//
-//
-//void thread2(void)
-//{
-//  printf ("thread is sleeping: %d\n", 2);
-//  uthread_sleep(20);
-//  printf ("thread is got back: %d\n", 2);
-//  printf ("Starting thread: %d\n", 2);
-//  fflush (stdout);
-//  int i = 0;
-//
-//  while (1)
-//    {
-//    }
-//}
-//
-//void thread3(void)
-//{
-//  while (1)
-//    {
-//    }
-//}
-//
-//
-//
-//
-//int main ()
-//{
-//  std::cout << "Hello, World!" << std::endl;
-//  uthread_init( 1);
-//  std::cout << "          spawn f at (1) " << uthread_spawn(thread1) << std::endl;
-//  std::cout << "          spawn g at (2) " << uthread_spawn(thread2) << std::endl;
-//  std::cout << "          spawn g at (3) " << uthread_spawn(thread3) << std::endl;
-//  for (;;)
-//    {
-//      //printf("we are in main therad!\n");
-//    }
-//  return 0;
-//}
-//
-//
-//
-
-/*
- * test1.cpp
+/**********************************************
+ * Test 132: thread's signal mask is saved between switches (not including VTALRM)
  *
- *	test suspends and resume
+ * steps:
+ * create three global sets of different signals (not including VTALRM) - set1, set2, set3
+ * spawn threads 1,2,3
+ * each thread K blocks setK and infinitely checks that his sigmask is setK
  *
- *  Created on: Apr 6, 2015
- *      Author: roigreenberg
- */
+ **********************************************/
 
-#include <stdio.h>
-#include <setjmp.h>
+
+
 #include <signal.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <stdlib.h>
-#include <deque>
-#include <list>
-#include <assert.h>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
 #include "uthreads.h"
-//#include "libuthread.a"
-#include <iostream>
-
-using namespace std;
 
 
-void f (void)
+#define GRN "\e[32m"
+#define RED "\x1B[31m"
+#define RESET "\x1B[0m"
+
+
+#define NUM_THREADS 4
+
+#define RUN 0
+#define DONE 1
+
+sigset_t set1, set2, set3;
+
+char thread_status[NUM_THREADS];
+
+void halt()
 {
-  int i = 1;
-  int j = 0;
-  while(1)
-    {
-      if (i == uthread_get_quantums(uthread_get_tid()))
-        {
-          cout << "f" << "  q:  " << i << endl;
-          if (i == 3 && j == 0)
-            {
-              j++;
-              cout << "          f suspend by f" << endl;
-              uthread_block(uthread_get_tid());
-            }
-          if (i == 6 && j == 1)
-            {
-              j++;
-              cout << "          g resume by f" << endl;
-              uthread_resume(2);
-            }
-          if (i == 8 && j == 2)
-            {
-              j++;
-              cout << "          **f end**" << endl;
-              uthread_terminate(uthread_get_tid());
-              return;
-            }
-          i++;
-        }
-    }
-}
-
-void g (void)
-{
-  int i = 1;
-  int j = 0;
-  while(1)
-    {
-      if (i == uthread_get_quantums(uthread_get_tid()))
-        {
-          cout << "g" << "  q:  " << i << endl;
-          if (i == 11 && j == 0)
-            {
-              j++;
-              cout << "          **g end**" << endl;
-              uthread_terminate(uthread_get_tid());
-              return;
-            }
-          i++;
-        }
-    }
+  while (true)
+    {}
 }
 
 
-int main(void)
+int next_thread()
 {
+  return (uthread_get_tid() + 1) % NUM_THREADS;
+}
+
+void check_sig_mask(const sigset_t& expected)
+{
+  for (unsigned int i = 0; i <= 20; i++)
+    {
+      sigset_t actual;
+      sigprocmask(0, NULL, &actual);
+      if (memcmp(&expected, &actual, sizeof(sigset_t)) != 0)
+        {
+          printf(RED "ERROR - sigmask changed\n" RESET);
+          exit(1);
+        }
+
+      // in the first 10 iterations let the thread stop because of sync / block.
+      // in later iterations it will stop because of the timer
+      if (i < 5)
+        {
+          //uthread_sync(next_thread());
+        }
+      else if (i < 10)
+        {
+          uthread_block(uthread_get_tid());
+        }
+      else
+        {
+          int quantum = uthread_get_quantums(uthread_get_tid());
+          while (uthread_get_quantums(uthread_get_tid()) == quantum)
+            {}
+        }
+    }
+  thread_status[uthread_get_tid()] = DONE;
+  halt();
+}
+
+void thread1()
+{
+  sigprocmask(SIG_BLOCK, &set1, NULL);
+  check_sig_mask(set1);
+}
+
+void thread2()
+{
+  sigprocmask(SIG_BLOCK, &set2, NULL);
+  check_sig_mask(set2);
+}
+
+void thread3()
+{
+  sigprocmask(SIG_BLOCK, &set3, NULL);
+  check_sig_mask(set3);
+}
+
+bool all_done()
+{
+  bool res = true;
+  for (int i = 1; i < NUM_THREADS; i++)
+    {
+      res = res && (thread_status[i] == DONE);
+    }
+  return res;
+}
+
+int main()
+{
+  printf(GRN "Test 132:  " RESET);
+  fflush(stdout);
+
+  sigemptyset(&set1);
+  sigemptyset(&set2);
+  sigemptyset(&set3);
+
+  sigaddset(&set1, SIGBUS);
+  sigaddset(&set1, SIGTERM);
+  sigaddset(&set1, SIGRTMAX);
+  sigaddset(&set1, SIGABRT);
+
+  sigaddset(&set2, SIGUSR1);
+  sigaddset(&set2, SIGSEGV);
+  sigaddset(&set2, SIGUSR2);
+  sigaddset(&set2, SIGPIPE);
+
+  sigaddset(&set3, SIGTSTP);
+  sigaddset(&set3, SIGTTIN);
+  sigaddset(&set3, SIGTTOU);
+  sigaddset(&set3, SIGBUS);
+
   int q[2] = {10, 20};
-  if (uthread_init(20) == -1)
+  uthread_init(20);
+
+  for (int i = 1; i < NUM_THREADS; i++)
     {
-      return 0;
+      thread_status[i] = RUN;
     }
 
-  int i = 1;
-  int j = 0;
+  int t1 = uthread_spawn(thread1);
+  int t2 = uthread_spawn(thread2);
+  int t3 = uthread_spawn(thread3);
 
-  while(1)
+  if (t1 == -1 || t2 == -1 || t3 == -1)
     {
-      //int a = uthread_get_quantums(uthread_get_tid());
-      //cout<<"quantums of thread number " << uthread_get_tid()<<" is " <<a<<std::endl;
-      if (i == uthread_get_quantums(uthread_get_tid()))
-        {
-          cout << "m" << "  q:  " << i << endl;
-          if (i == 3 && j == 0)
-            {
-              j++;
-              cout << "          spawn f at (1) " << uthread_spawn(f) << endl;
-              cout << "          spawn g at (2) " << uthread_spawn(g) << endl;
-            }
-
-          if (i == 6 && j == 1)
-            {
-              j++;
-              cout << "          g suspend by main" << endl;
-              uthread_block(2);
-              cout << "          g suspend again by main" << endl;
-              uthread_block(2);
-            }
-          if (i == 9 && j == 2)
-            {
-              j++;
-              cout << "          f resume by main" << endl;
-              uthread_resume(1);
-              cout << "          f resume again by main" << endl;
-              uthread_resume(1);
-            }
-          if (i == 13 && j == 3)
-            {
-              j++;
-              cout << "          spawn f at (1) " << uthread_spawn(f) << endl;
-              cout << "          f suspend by main" << endl;
-              uthread_block(1);
-            }
-          if (i == 17 && j == 4)
-            {
-              j++;
-              cout << "          spawn g at (2) " << uthread_spawn(g) << endl;
-              cout << "          f terminate by main" << endl;
-              uthread_terminate(1);
-              cout << "          spawn f at (1) " << uthread_spawn(f) << endl;
-              cout << "          f suspend by main" << endl;
-              uthread_block(1);
-            }
-          if (i == 20 && j == 5)
-            {
-              j++;
-              //cout << "i: " << i << endl;
-              cout << "          ******end******" << endl;
-              cout << "total quantums:  " << uthread_get_total_quantums() << endl;
-              uthread_terminate(0);
-              return 0;
-            }
-          i++;
-        }
+      printf(RED "ERROR - threads spawning failed\n" RESET);
+      exit(1);
     }
-  cout << "end" << endl;
-  return 0;
+
+
+  int tid = 0;
+  while (!all_done())
+    {
+      // resume all threads, as each one of them is blocking himself
+      uthread_resume(tid);
+      tid = (tid + 1) % NUM_THREADS;
+    }
+
+
+  printf(GRN "SUCCESS\n" RESET);
+  uthread_terminate(0);
 }
-
-
-
-
-

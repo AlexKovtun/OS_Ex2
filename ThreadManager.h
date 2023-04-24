@@ -35,7 +35,6 @@ class ThreadManager {
   ThreadManager (int num_quantums);
   int createThread (int tid, thread_entry_point entry_point);
   int getAvailableId ();
-  void startRunning ();
   void pushReadyQ(UThread* threadToInsert);
   UThread * popReadyQ();
 
@@ -51,13 +50,17 @@ class ThreadManager {
   UThread *getThreadById ();
   UThread *getThreadById (int tid);
   int blockThread (int tid);
-  int block (UThread *thread);
   int resume (int tid);
   int terminateThread(int tid);
   void threadSleep (int num_quantums);
   void updateSleepTime();
-  int getTotalQuantum(){return this->m_total_num_of_quantum;};
+  void increaseTotalQuantum() { ++m_total_num_of_quantum;}
+  int getTotalQuantum(){
+    return m_total_num_of_quantum;
+
+  };
   void timerStatus (int block_flag);
+  int terminateByState (int tid);
 };
 
 
