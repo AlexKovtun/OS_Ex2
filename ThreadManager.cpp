@@ -379,7 +379,6 @@ int ThreadManager::valid_tid (int tid)
 {
   if (tid < 0 || tid > MAX_THREAD_NUM)
   {
-    fprintf (stderr, "thread library error: tid out of range\n");
     return FAILURE;
   }
   return SUCCESS;

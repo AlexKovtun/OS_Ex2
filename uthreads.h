@@ -28,6 +28,7 @@ typedef void (*thread_entry_point)(void);
  *
  * @return On success, return 0. On failure, return -1.
 */
+
 int uthread_init(int quantum_usecs);
 
 /**
