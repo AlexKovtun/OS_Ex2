@@ -19,18 +19,20 @@
 int uthread_init (int quantum_usecs)
 {
   if (quantum_usecs <= 0)
-  {
-    fprintf(stderr, "thread library error: quantum_usecs should be "
-                    "positive\n");
-    return FAILURE;
-  }
-  try{
-    thread_manager = new ThreadManager (quantum_usecs);
-  }
-  catch (std::bad_alloc){
-    fprintf (stderr, "system error: couldn't alloc thread\n");
-    exit (1);
-  }
+    {
+      fprintf (stderr, "thread library error: quantum_usecs should be "
+                       "positive\n");
+      return FAILURE;
+    }
+  try
+    {
+      thread_manager = new ThreadManager (quantum_usecs);
+    }
+  catch (std::bad_alloc)
+    {
+      fprintf (stderr, "system error: couldn't alloc thread\n");
+      exit (1);
+    }
   return SUCCESS;
 }
 
@@ -50,15 +52,17 @@ int uthread_init (int quantum_usecs)
 int uthread_spawn (thread_entry_point entry_point)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  if(!entry_point){
-    fprintf(stderr, "thread library error: entry point null\n");
-    return FAILURE;
-  }
-  int tid = thread_manager->getAvailableId();
-  if(tid == FAILURE){
-      fprintf(stderr, "thread library error: too much threads\n");
+  if (!entry_point)
+    {
+      fprintf (stderr, "thread library error: entry point null\n");
       return FAILURE;
-  }
+    }
+  int tid = thread_manager->getAvailableId ();
+  if (tid == FAILURE)
+    {
+      fprintf (stderr, "thread library error: too much threads\n");
+      return FAILURE;
+    }
   thread_manager->createThread (tid, entry_point);
   thread_manager->timerStatus (SIG_UNBLOCK);
   return tid;
@@ -83,13 +87,27 @@ int uthread_get_tid ()
 int uthread_block (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
+  if (thread_manager->isValidId (tid))
+    {
+      thread_manager->timerStatus (SIG_UNBLOCK);
+      return FAILURE;
+    }
   if (tid == 0)
+<<<<<<< HEAD
   {
     fprintf(stderr, "thread library error: can't block main\n");
     thread_manager->timerStatus (SIG_UNBLOCK);
     return FAILURE;
   }
   if(thread_manager->blockThread (tid) == FAILURE){return FAILURE;}
+=======
+    {
+      fprintf (stderr, "thread library error: trying tot delete main thread\n");
+      thread_manager->timerStatus (SIG_UNBLOCK);
+      return FAILURE;
+    }
+  thread_manager->blockThread (tid);
+>>>>>>> 07bcb46eb8b6b6d2acb64a6cff88b56dfcc7eb38
   thread_manager->timerStatus (SIG_UNBLOCK);
   return SUCCESS;
 }
@@ -123,19 +141,22 @@ int uthread_resume (int tid)
 int uthread_terminate (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
+<<<<<<< HEAD
   int result = thread_manager->terminateThread (tid);
   if(result == FAILURE){return FAILURE;}
+=======
+  if(thread_manager->terminateThread (tid) == FAILURE){
+    return FAILURE;
+  }
+
+>>>>>>> 07bcb46eb8b6b6d2acb64a6cff88b56dfcc7eb38
   if (tid == 0)
-  {
-    delete (thread_manager);
-    thread_manager->timerStatus (SIG_UNBLOCK);
-    exit (0);
-  }
-  if (tid != thread_manager->getCurrentId ())
-  {
-    thread_manager->timerStatus (SIG_UNBLOCK);
-    return result;
-  }
+    {
+      delete (thread_manager);
+      thread_manager->timerStatus (SIG_UNBLOCK);
+      exit (0);
+    }
+
   thread_manager->timerStatus (SIG_UNBLOCK);
   return 0;
 }
@@ -157,11 +178,11 @@ int uthread_sleep (int num_quantums)
 {
   thread_manager->timerStatus (SIG_BLOCK);
   if (thread_manager->getCurrentId () == 0)
-  {
-    fprintf(stderr, "thread library error: main thread cannot call sleep\n");
-    thread_manager->timerStatus (SIG_UNBLOCK);
-    return FAILURE;
-  }
+    {
+      fprintf (stderr, "thread library error: main thread cannot call sleep\n");
+      thread_manager->timerStatus (SIG_UNBLOCK);
+      return FAILURE;
+    }
 
   thread_manager->threadSleep (num_quantums);
   thread_manager->timerStatus (SIG_UNBLOCK);
@@ -193,17 +214,25 @@ int uthread_get_total_quantums ()
 int uthread_get_quantums (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  if (tid < 0 || tid > MAX_THREAD_NUM)
-  {
-    fprintf (stderr, "thread library error: tid out of range\n");
+  if(thread_manager->isValidId (tid) == FAILURE)
     return FAILURE;
+  if(!thread_manager->isExistThread(tid)){
+      fprintf (stderr,"thread library error: "
+                      "thread library error:no thread with given tid\n");
   }
+
   UThread *u_thread = thread_manager->getThreadById (tid);
   thread_manager->timerStatus (SIG_UNBLOCK);
   if (u_thread == nullptr)
+<<<<<<< HEAD
   {
     fprintf(stderr, "thread library error: wrong tid getting quantums\n");
     return FAILURE;
   }
+=======
+    {
+      return FAILURE;
+    }
+>>>>>>> 07bcb46eb8b6b6d2acb64a6cff88b56dfcc7eb38
   return u_thread->getRunningQuantum ();
 }

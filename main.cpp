@@ -34,7 +34,7 @@ char thread_status[NUM_THREADS];
 void halt()
 {
   while (true)
-    {}
+  {}
 }
 
 
@@ -46,32 +46,32 @@ int next_thread()
 void check_sig_mask(const sigset_t& expected)
 {
   for (unsigned int i = 0; i <= 20; i++)
+  {
+    sigset_t actual;
+    sigprocmask(0, NULL, &actual);
+    if (memcmp(&expected, &actual, sizeof(sigset_t)) != 0)
     {
-      sigset_t actual;
-      sigprocmask(0, NULL, &actual);
-      if (memcmp(&expected, &actual, sizeof(sigset_t)) != 0)
-        {
-          printf(RED "ERROR - sigmask changed\n" RESET);
-          exit(1);
-        }
-
-      // in the first 10 iterations let the thread stop because of sync / block.
-      // in later iterations it will stop because of the timer
-      if (i < 5)
-        {
-          //uthread_sync(next_thread());
-        }
-      else if (i < 10)
-        {
-          uthread_block(uthread_get_tid());
-        }
-      else
-        {
-          int quantum = uthread_get_quantums(uthread_get_tid());
-          while (uthread_get_quantums(uthread_get_tid()) == quantum)
-            {}
-        }
+      printf(RED "ERROR - sigmask changed\n" RESET);
+      exit(1);
     }
+
+    // in the first 10 iterations let the thread stop because of sync / block.
+    // in later iterations it will stop because of the timer
+    if (i < 5)
+    {
+      //uthread_sync(next_thread());
+    }
+    else if (i < 10)
+    {
+      uthread_block(uthread_get_tid());
+    }
+    else
+    {
+      int quantum = uthread_get_quantums(uthread_get_tid());
+      while (uthread_get_quantums(uthread_get_tid()) == quantum)
+      {}
+    }
+  }
   thread_status[uthread_get_tid()] = DONE;
   halt();
 }
@@ -98,9 +98,9 @@ bool all_done()
 {
   bool res = true;
   for (int i = 1; i < NUM_THREADS; i++)
-    {
-      res = res && (thread_status[i] == DONE);
-    }
+  {
+    res = res && (thread_status[i] == DONE);
+  }
   return res;
 }
 
@@ -132,28 +132,28 @@ int main()
   uthread_init(20);
 
   for (int i = 1; i < NUM_THREADS; i++)
-    {
-      thread_status[i] = RUN;
-    }
+  {
+    thread_status[i] = RUN;
+  }
 
   int t1 = uthread_spawn(thread1);
   int t2 = uthread_spawn(thread2);
   int t3 = uthread_spawn(thread3);
 
   if (t1 == -1 || t2 == -1 || t3 == -1)
-    {
-      printf(RED "ERROR - threads spawning failed\n" RESET);
-      exit(1);
-    }
+  {
+    printf(RED "ERROR - threads spawning failed\n" RESET);
+    exit(1);
+  }
 
 
   int tid = 0;
   while (!all_done())
-    {
-      // resume all threads, as each one of them is blocking himself
-      uthread_resume(tid);
-      tid = (tid + 1) % NUM_THREADS;
-    }
+  {
+    // resume all threads, as each one of them is blocking himself
+    uthread_resume(tid);
+    tid = (tid + 1) % NUM_THREADS;
+  }
 
 
   printf(GRN "SUCCESS\n" RESET);

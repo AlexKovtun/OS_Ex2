@@ -8,11 +8,14 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <string>
 #include "UThread.h"
 #include "uthreads.h"
 
 #define FAILURE -1
 #define SUCCESS 0
+
+
 
 class ThreadManager
 {
@@ -28,7 +31,6 @@ class ThreadManager
 
   void initId ();
   int terminateAll ();
-  int valid_tid (int tid);
 
  public:
   std::map<int, UThread *> getThreads ()
@@ -66,8 +68,11 @@ class ThreadManager
     return m_total_num_of_quantum;
 
   };
+  int isValidId (int tid);
   void timerStatus (int block_flag);
   int terminateByState (int tid);
+  void HandleExit (const char *type, const char *msg);
+  bool isExistThread (int tid);
 };
 
 extern ThreadManager *thread_manager;

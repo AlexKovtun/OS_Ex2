@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <new>
 #include <cstdlib>
+#include <iostream>
 
 #include "uthreads.h"
 #include "UThread.h"
