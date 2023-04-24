@@ -1,5 +1,8 @@
 #include "uthreads.h"
 #include "ThreadManager.h"
+#include <cstdio>
+#include <new>
+
 
 /**
  * @brief initializes the thread library.
@@ -15,8 +18,20 @@
 */
 int uthread_init (int quantum_usecs)
 {
-  thread_manager = new ThreadManager (quantum_usecs);
-  return 0;
+  if (quantum_usecs <= 0)
+  {
+    fprintf(stderr, "thread library error: quantum_usecs should be "
+                    "positive\n");
+    return FAILURE;
+  }
+  try{
+    thread_manager = new ThreadManager (quantum_usecs);
+  }
+  catch (std::bad_alloc){
+    fprintf (stderr, "system error: couldn't alloc thread\n");
+    exit (1);
+  }
+  return SUCCESS;
 }
 
 /**
@@ -35,7 +50,16 @@ int uthread_init (int quantum_usecs)
 int uthread_spawn (thread_entry_point entry_point)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  int tid = thread_manager->createThread (thread_manager->getAvailableId (), entry_point);
+  if(!entry_point){
+    fprintf(stderr, "thread library error: entry point null\n");
+    return FAILURE;
+  }
+  int tid = thread_manager->getAvailableId();
+  if(tid == FAILURE){
+      fprintf(stderr, "thread library error: too much threads\n");
+      return FAILURE;
+  }
+  thread_manager->createThread (tid, entry_point);
   thread_manager->timerStatus (SIG_UNBLOCK);
   return tid;
 }
@@ -60,10 +84,10 @@ int uthread_block (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
   if (tid == 0)
-    {
-      thread_manager->timerStatus (SIG_UNBLOCK);
-      return FAILURE;
-    }
+  {
+    thread_manager->timerStatus (SIG_UNBLOCK);
+    return FAILURE;
+  }
   thread_manager->blockThread (tid);
   thread_manager->timerStatus (SIG_UNBLOCK);
   return SUCCESS;
@@ -99,16 +123,16 @@ int uthread_terminate (int tid)
   thread_manager->timerStatus (SIG_BLOCK);
   int result = thread_manager->terminateThread (tid);
   if (tid == 0)
-    {
-      delete (thread_manager);
-      thread_manager->timerStatus (SIG_UNBLOCK);
-      exit (0);
-    }
+  {
+    delete (thread_manager);
+    thread_manager->timerStatus (SIG_UNBLOCK);
+    exit (0);
+  }
   if (tid != thread_manager->getCurrentId ())
-    {
-      thread_manager->timerStatus (SIG_UNBLOCK);
-      return result;
-    }
+  {
+    thread_manager->timerStatus (SIG_UNBLOCK);
+    return result;
+  }
   thread_manager->timerStatus (SIG_UNBLOCK);
   return 0;
 }
@@ -130,10 +154,11 @@ int uthread_sleep (int num_quantums)
 {
   thread_manager->timerStatus (SIG_BLOCK);
   if (thread_manager->getCurrentId () == 0)
-    {
-      thread_manager->timerStatus (SIG_UNBLOCK);
-      return FAILURE;
-    }
+  {
+    fprintf(stderr, "thread library error: main thread cannot call sleep\n");
+    thread_manager->timerStatus (SIG_UNBLOCK);
+    return FAILURE;
+  }
 
   thread_manager->threadSleep (num_quantums);
   thread_manager->timerStatus (SIG_UNBLOCK);
@@ -165,9 +190,15 @@ int uthread_get_total_quantums ()
 int uthread_get_quantums (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
+  if (tid < 0 || tid > MAX_THREAD_NUM)
+  {
+    fprintf (stderr, "thread library error: tid out of range\n");
+    return FAILURE;
+  }
   UThread *u_thread = thread_manager->getThreadById (tid);
   thread_manager->timerStatus (SIG_UNBLOCK);
-  if(u_thread == nullptr){
+  if (u_thread == nullptr)
+  {
     return FAILURE;
   }
   return u_thread->getRunningQuantum ();

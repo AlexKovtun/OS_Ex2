@@ -3,6 +3,8 @@
 //
 
 #include "ThreadManager.h"
+#include <cstdio>
+#include <new>
 
 #ifndef _INSTANCE_MANAGER
 #define _INSTANCE_MANAGER
@@ -12,6 +14,12 @@ ThreadManager *thread_manager = nullptr;
 int ThreadManager::createThread (int tid, thread_entry_point entry_point)
 {
   auto *thread = new UThread (tid, entry_point);
+  if (thread == nullptr)
+  {
+    terminateAll ();
+    fprintf (stderr, "system error: couldn't alloc thread\n");
+    exit (1);
+  }
   m_threads.insert ({tid, thread});
   m_ready_threads.push_back (thread);
   return tid;
@@ -20,13 +28,13 @@ int ThreadManager::createThread (int tid, thread_entry_point entry_point)
 void ThreadManager::switchThread ()
 {
   if (m_current_thread != nullptr)
+  {
+    int retVal = sigsetjmp (m_current_thread->getEnv (), 1);
+    if (retVal == 1)
     {
-      int retVal = sigsetjmp(m_current_thread->getEnv (), 1);
-      if (retVal == 1)
-        {
-          return;
-        }
+      return;
     }
+  }
   thread_manager->updateSleepTime ();
   m_total_num_of_quantum++;
   this->popReadyQ (); //switching the current thread to a new one
@@ -38,40 +46,53 @@ void ThreadManager::switchThread ()
 int ThreadManager::getAvailableId ()
 {
   for (int i = 1; i < m_available_id.size (); ++i)
+  {
+    if (m_available_id[i] == 0)
     {
-      if (m_available_id[i] == 0)
-        {
-          m_available_id[i] = 1;
-          return i;
-        }
+      m_available_id[i] = 1;
+      return i;
     }
-  return 0;
+  }
+  return FAILURE;
 }
 
 ThreadManager::ThreadManager (int num_quantums)
 {
   //checks if there is no thread yet(if 0 terminated we terminate the program
   if (m_threads.empty ())
+  {
+    try
     {
       auto *pt = new UThread ();
       m_threads.insert ({0, pt});
       m_current_thread = pt;
-      m_num_quantums = num_quantums;
-      m_total_num_of_quantum = 1;
-      installTimer ();
-      initId ();
-      sigemptyset (&set);
-      setTimer ();
-      sigaddset (&set, SIGVTALRM);
     }
+    catch (std::bad_alloc &)
+    {
+      fprintf (stderr, "system error: couldn't alloc thread\n");
+      exit (1);
+    }
+    m_num_quantums = num_quantums;
+    m_total_num_of_quantum = 1;
+    installTimer ();
+    initId ();
+    if (sigemptyset (&set))
+    {
+      terminateAll ();
+      fprintf (stderr, "system error: couldn't empty signal set\n");
+      exit (1);
+    }
+    setTimer ();
+    sigaddset (&set, SIGVTALRM);
+  }
 }
 
 void ThreadManager::initId ()
 {
   for (int i = 0; i < MAX_THREAD_NUM; ++i)
-    {
-      m_available_id.push_back (0);
-    }
+  {
+    m_available_id.push_back (0);
+  }
 }
 
 /************************* START OF HANDLING TIMER **************************/
@@ -91,11 +112,12 @@ int ThreadManager::installTimer ()
   // Install timer_handler as the signal handler for SIGVTALRM.
   sa.sa_handler = &timer_handler;
   if (sigaction (SIGVTALRM, &sa, NULL) == -1)
-    {
-      //printf ("the sigaction error reason is: %s\n", errno);
-      printf ("the sigaction error reason is\n");
-      return -1;
-    }
+  {
+    //printf ("the sigaction error reason is: %s\n", errno);
+    terminateAll ();
+    fprintf (stderr, "system error: timer error\n");
+    exit (1);
+  }
   return 0;
 }
 
@@ -118,10 +140,11 @@ int ThreadManager::resetTimer ()
 {
   // Start a virtual timer. It counts down whenever this process is executing.
   if (setitimer (ITIMER_VIRTUAL, &timer, NULL))
-    {
-      printf ("timer error.");
-      return -1;
-    }
+  {
+    terminateAll ();
+    fprintf (stderr, "system error: timer error\n");
+    exit (1);
+  }
   return 0;
 }
 
@@ -145,62 +168,78 @@ UThread *ThreadManager::getThreadById (int tid)
 {
   auto search = m_threads.find (tid);
   if (search != m_threads.end ())
-    {
-      return search->second;
-    }
+  {
+    return search->second;
+  }
   return nullptr;
 }
 
 /************************* START OF HANDLING BLOCK **************************/
 int ThreadManager::blockThread (int tid)
 {
+  if (valid_tid (tid) == FAILURE)
+  {
+    fprintf(stderr, "thread library error: tid out of range\n");
+    return FAILURE;
+  }
   UThread *thread_to_block = getThreadById (tid);
   if (thread_to_block == nullptr)
-    {
-      return FAILURE;
-    }
+  {
+    fprintf(stderr, "thread library error:no thread with given tid\n");
+    return FAILURE;
+  }
   int block_state = thread_to_block->getState ();
   if (block_state == THREAD_BLOCKED || block_state == THREAD_SLEEPING_BLOCKED)
-    {
-      return SUCCESS;
-    }
+  {
+    return SUCCESS;
+  }
   if (block_state == THREAD_RUNNING)
-    {
-      thread_to_block->setState (THREAD_BLOCKED);
-      switchThread ();
-      //++m_total_num_of_quantum;
-      resetTimer ();
-    }
+  {
+    thread_to_block->setState (THREAD_BLOCKED);
+    switchThread ();
+    //++m_total_num_of_quantum;
+    resetTimer ();
+  }
   else if (block_state == THREAD_READY)
-    {
-      thread_to_block->setState (THREAD_BLOCKED);
-      m_ready_threads.remove (thread_to_block);
-    }
+  {
+    thread_to_block->setState (THREAD_BLOCKED);
+    m_ready_threads.remove (thread_to_block);
+  }
   else if (block_state == THREAD_SLEEPING)
-    {
-      thread_to_block->setState (THREAD_SLEEPING_BLOCKED);
-    }
+  {
+    thread_to_block->setState (THREAD_SLEEPING_BLOCKED);
+  }
   timerStatus (SIG_UNBLOCK);
   return 0;
 }
 
 int ThreadManager::resume (int tid)
 {
+  if (valid_tid (tid) == FAILURE)
+  {
+    fprintf(stderr, "thread library error: tid out of range\n");
+    return FAILURE;
+  }
   UThread *resume_thread = getThreadById (tid);
+  if (resume_thread == nullptr)
+  {
+    fprintf(stderr, "thread library error:no thread with given tid\n");
+    return FAILURE;
+  }
   int state = resume_thread->getState ();
   if (state == THREAD_READY || state == THREAD_RUNNING)
-    {
-      return SUCCESS;
-    }
+  {
+    return SUCCESS;
+  }
   else if (state == THREAD_BLOCKED)
-    {
-      resume_thread->setState (THREAD_READY);
-      m_ready_threads.push_back (resume_thread);
-    }
+  {
+    resume_thread->setState (THREAD_READY);
+    m_ready_threads.push_back (resume_thread);
+  }
   else if (state == THREAD_SLEEPING_BLOCKED)
-    {
-      resume_thread->setState (THREAD_SLEEPING);
-    }
+  {
+    resume_thread->setState (THREAD_SLEEPING);
+  }
   return SUCCESS;
 }
 
@@ -209,27 +248,60 @@ int ThreadManager::resume (int tid)
 
 int ThreadManager::terminateThread (int tid)
 {
-//TODO maybe this is error
-  if (tid < 0 || tid > MAX_THREAD_NUM)
-    {
-      return -1;
-    }
+  if (valid_tid (tid) == FAILURE)
+  {
+    fprintf(stderr, "thread library error: tid out of range\n");
+    return FAILURE;
+  }
   if (tid != 0)
+  {
+    try
     {
       return terminateByState (tid);
     }
-  for (auto const &thrd: m_threads)
+    catch(std::exception)
     {
-      delete (thrd.second);
+      terminateAll ();
+      fprintf (stderr, "system error: problem terminating thread %d\n", tid);
+      exit (1);
     }
+  }
+  try
+  {
+    terminateAll ();
+  }
+  catch(std::exception)
+  {
+    fprintf (stderr, "system error: problem clearing, couldn't trminate "
+                     "all\n");
+    exit (1);
+  }
+  exit (0);
+}
+
+int ThreadManager::terminateAll ()
+{
+  for (auto const &thrd: m_threads)
+  {
+    delete (thrd.second);
+  }
   m_threads.clear ();
   m_ready_threads.clear ();
-  exit (0);
 }
 
 int ThreadManager::terminateByState (int tid)
 {
+  if (valid_tid (tid) == FAILURE)
+  {
+    fprintf(stderr, "thread library error: tid out of range\n");
+    return FAILURE;
+  }
   UThread *to_terminate = m_threads.at (tid); //if tid not in map throw error
+  if (to_terminate == nullptr)
+  {
+    fprintf(stderr, "thread library error:no thread with given tid\n");
+    return FAILURE;
+  }
   m_available_id[tid] = 0;
   int thread_state = to_terminate->getState ();
   if (thread_state == THREAD_READY)
@@ -238,17 +310,23 @@ int ThreadManager::terminateByState (int tid)
            thread_state == THREAD_SLEEPING)
     m_sleeping_threads.erase (tid);
   else if (thread_state == THREAD_RUNNING)
-    {
-      //++m_total_num_of_quantum;
-      switchThread ();
-    }
+  {
+    //++m_total_num_of_quantum;
+    switchThread ();
+  }
   delete (to_terminate);
   m_threads.erase (tid);
   return SUCCESS;
 }
 
-void ThreadManager::threadSleep (int num_quantums)
+int ThreadManager::threadSleep (int num_quantums)
 {
+  if (num_quantums <= 0)
+  {
+    fprintf(stderr, "thread library error: quantum_usecs should be "
+                    "positive\n");
+    return FAILURE;
+  }
   timerStatus (SIG_BLOCK);
   m_current_thread->setState (THREAD_SLEEPING);
   m_current_thread->setSleepTime (num_quantums);
@@ -257,44 +335,55 @@ void ThreadManager::threadSleep (int num_quantums)
   //++m_total_num_of_quantum;
   resetTimer ();
   timerStatus (SIG_UNBLOCK);
+  return SUCCESS;
 }
 
 void ThreadManager::updateSleepTime ()
 {
   std::list<int> return_back;
   for (const auto &thread: m_sleeping_threads)
+  {
+    thread.second->decreaseTimeLeft ();
+    if (thread.second->getQuantumSleep () <= 0)
     {
-      thread.second->decreaseTimeLeft ();
-      if (thread.second->getQuantumSleep () <= 0)
-        {
-          if (thread.second->getState () != THREAD_SLEEPING_BLOCKED)
-            {
-              thread.second->setState (THREAD_READY);
-              return_back.push_back (thread.first);
-            }
-          else
-            {
-              thread.second->setState (THREAD_BLOCKED);
-            }
-        }
+      if (thread.second->getState () != THREAD_SLEEPING_BLOCKED)
+      {
+        thread.second->setState (THREAD_READY);
+        return_back.push_back (thread.first);
+      }
+      else
+      {
+        thread.second->setState (THREAD_BLOCKED);
+      }
     }
+  }
   for (const auto &tid: return_back)
-    {
-      m_sleeping_threads.erase (tid);
-      auto *thread_to_return = getThreadById (tid);
-      pushReadyQ (thread_to_return);
-    }
+  {
+    m_sleeping_threads.erase (tid);
+    auto *thread_to_return = getThreadById (tid);
+    pushReadyQ (thread_to_return);
+  }
 }
 
 void ThreadManager::timerStatus (int block_flag)
 {
   if (sigprocmask (block_flag, &set, nullptr))
-    {
-      exit (1);//TODO: error message
-    }
+  {
+    terminateAll();
+    fprintf (stderr, "system error: timer error\n");
+    exit (1);
+  }
 }
 
-
+int ThreadManager::valid_tid (int tid)
+{
+  if (tid < 0 || tid > MAX_THREAD_NUM)
+  {
+    fprintf (stderr, "thread library error: tid out of range\n");
+    return FAILURE;
+  }
+  return SUCCESS;
+}
 
 
 

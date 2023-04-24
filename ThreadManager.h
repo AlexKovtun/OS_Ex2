@@ -14,8 +14,8 @@
 #define FAILURE -1
 #define SUCCESS 0
 
-
-class ThreadManager {
+class ThreadManager
+{
  private:
   std::map<int, UThread *> m_threads;
   std::map<int, UThread *> m_sleeping_threads;
@@ -26,44 +26,49 @@ class ThreadManager {
   int m_num_quantums;
   sigset_t set;
 
-
   void initId ();
+  int terminateAll ();
+  int valid_tid (int tid);
 
  public:
-  std::map<int, UThread *> getThreads () { return m_threads; }
+  std::map<int, UThread *> getThreads ()
+  { return m_threads; }
   void switchThread ();
   ThreadManager (int num_quantums);
   int createThread (int tid, thread_entry_point entry_point);
   int getAvailableId ();
-  void pushReadyQ(UThread* threadToInsert);
-  UThread * popReadyQ();
+  void pushReadyQ (UThread *threadToInsert);
+  UThread *popReadyQ ();
 
   struct sigaction sa = {0};
   struct itimerval timer = {0};
 
   int installTimer ();
   int setTimer ();
-  int resetTimer();
-  int getCurrentId () { return m_current_thread->getId();};
-  UThread *getCurrentThread () { return m_current_thread;};
-  int getQuantumTime () {return this->m_num_quantums;};
+  int resetTimer ();
+  int getCurrentId ()
+  { return m_current_thread->getId (); };
+  UThread *getCurrentThread ()
+  { return m_current_thread; };
+  int getQuantumTime ()
+  { return this->m_num_quantums; };
   UThread *getThreadById ();
   UThread *getThreadById (int tid);
   int blockThread (int tid);
   int resume (int tid);
-  int terminateThread(int tid);
-  void threadSleep (int num_quantums);
-  void updateSleepTime();
-  void increaseTotalQuantum() { ++m_total_num_of_quantum;}
-  int getTotalQuantum(){
+  int terminateThread (int tid);
+  int threadSleep (int num_quantums);
+  void updateSleepTime ();
+  void increaseTotalQuantum ()
+  { ++m_total_num_of_quantum; }
+  int getTotalQuantum ()
+  {
     return m_total_num_of_quantum;
 
   };
   void timerStatus (int block_flag);
   int terminateByState (int tid);
 };
-
-
 
 extern ThreadManager *thread_manager;
 #endif _THREADMANAGER_H_
