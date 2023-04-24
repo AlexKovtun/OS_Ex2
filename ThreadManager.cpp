@@ -185,7 +185,7 @@ int ThreadManager::blockThread (int tid)
   UThread *thread_to_block = getThreadById (tid);
   if (thread_to_block == nullptr)
   {
-    fprintf(stderr, "thread library error:no thread with given tid\n");
+    fprintf(stderr, "thread library error: wrong tid when blocking\n");
     return FAILURE;
   }
   int block_state = thread_to_block->getState ();
@@ -223,7 +223,7 @@ int ThreadManager::resume (int tid)
   UThread *resume_thread = getThreadById (tid);
   if (resume_thread == nullptr)
   {
-    fprintf(stderr, "thread library error:no thread with given tid\n");
+    fprintf(stderr, "thread library error: wrong tid when resuming\n");
     return FAILURE;
   }
   int state = resume_thread->getState ();
@@ -272,7 +272,7 @@ int ThreadManager::terminateThread (int tid)
   }
   catch(std::exception)
   {
-    fprintf (stderr, "system error: problem clearing, couldn't trminate "
+    fprintf (stderr, "system error: problem clearing, couldn't terminate "
                      "all\n");
     exit (1);
   }
@@ -281,9 +281,10 @@ int ThreadManager::terminateThread (int tid)
 
 int ThreadManager::terminateAll ()
 {
-  for (auto const &thrd: m_threads)
+  for (auto &thrd: m_threads)
   {
     delete (thrd.second);
+    thrd.second = nullptr;
   }
   m_threads.clear ();
   m_ready_threads.clear ();
@@ -296,10 +297,10 @@ int ThreadManager::terminateByState (int tid)
     fprintf(stderr, "thread library error: tid out of range\n");
     return FAILURE;
   }
-  UThread *to_terminate = m_threads.at (tid); //if tid not in map throw error
+  UThread *to_terminate = getThreadById(tid); //if tid not in map throw error
   if (to_terminate == nullptr)
   {
-    fprintf(stderr, "thread library error:no thread with given tid\n");
+    fprintf(stderr, "thread library error:wrong tid when terminating\n");
     return FAILURE;
   }
   m_available_id[tid] = 0;
@@ -315,6 +316,7 @@ int ThreadManager::terminateByState (int tid)
     switchThread ();
   }
   delete (to_terminate);
+  to_terminate = nullptr;
   m_threads.erase (tid);
   return SUCCESS;
 }

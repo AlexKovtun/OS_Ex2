@@ -85,10 +85,11 @@ int uthread_block (int tid)
   thread_manager->timerStatus (SIG_BLOCK);
   if (tid == 0)
   {
+    fprintf(stderr, "thread library error: can't block main\n");
     thread_manager->timerStatus (SIG_UNBLOCK);
     return FAILURE;
   }
-  thread_manager->blockThread (tid);
+  if(thread_manager->blockThread (tid) == FAILURE){return FAILURE;}
   thread_manager->timerStatus (SIG_UNBLOCK);
   return SUCCESS;
 }
@@ -104,8 +105,9 @@ int uthread_block (int tid)
 int uthread_resume (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  thread_manager->resume (tid);
+  int result = thread_manager->resume (tid);
   thread_manager->timerStatus (SIG_UNBLOCK);
+  return result;
 }
 
 /**
@@ -122,6 +124,7 @@ int uthread_terminate (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
   int result = thread_manager->terminateThread (tid);
+  if(result == FAILURE){return FAILURE;}
   if (tid == 0)
   {
     delete (thread_manager);
@@ -199,6 +202,7 @@ int uthread_get_quantums (int tid)
   thread_manager->timerStatus (SIG_UNBLOCK);
   if (u_thread == nullptr)
   {
+    fprintf(stderr, "thread library error: wrong tid getting quantums\n");
     return FAILURE;
   }
   return u_thread->getRunningQuantum ();
