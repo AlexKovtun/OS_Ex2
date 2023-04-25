@@ -63,18 +63,16 @@ UThread::UThread ()
   this->m_state = THREAD_RUNNING;
   this->running_quantum_time = 1;
   sigsetjmp(this->m_env, 1);
+    if(sigemptyset(&this->m_env->__saved_mask)){
+        fprintf (stderr, "system error: couldn't empty signal set\n");
+        exit (1);
+    }
 }
 
 UThread::UThread (int tid, thread_entry_point entry_point)
 {
   this->m_tid = tid;
   this->m_stack_size = STACK_SIZE;
-  try
-  {  this->m_stack = new char[STACK_SIZE];}
-  catch(std::bad_alloc&){
-    fprintf (stderr, "system error: couldn't alloc thread\n");
-    exit (1);
-  }
   this->m_state = THREAD_READY;
   this->running_quantum_time = 0;
   auto pc = (address_t) entry_point;
@@ -93,7 +91,7 @@ UThread::UThread (int tid, thread_entry_point entry_point)
 }
 UThread::~UThread ()
 {
-  delete [] m_stack;
+  //delete [] m_stack;
 }
 int UThread::save_current_state ()
 {

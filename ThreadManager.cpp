@@ -29,12 +29,6 @@ const char *POS_QUANTUM_SEC_MSG =
 int ThreadManager::createThread (int tid, thread_entry_point entry_point)
 {
   auto *thread = new UThread (tid, entry_point);
-  if (thread == nullptr)
-    {
-      terminateAll ();
-      fprintf (stderr, "system error: couldn't alloc thread\n");
-      exit (1);
-    }
   m_threads.insert ({tid, thread});
   m_ready_threads.push_back (thread);
   return tid;
@@ -226,12 +220,17 @@ int ThreadManager::resume (int tid)
     {
       return FAILURE;
     }
+  if(!isExistThread(tid)){
+      fprintf(stderr,LIB_ERROR,EXIST_THREAD_MSG);
+      return FAILURE;
+  }
   UThread *resume_thread = getThreadById (tid);
   if (resume_thread == nullptr)
     {
       fprintf (stderr, LIB_ERROR, EXIST_THREAD_MSG);
       return FAILURE;
     }
+
   int state = resume_thread->getState ();
   if (state == THREAD_READY || state == THREAD_RUNNING)
     {
@@ -269,27 +268,28 @@ int ThreadManager::terminateThread (int tid)
           HandleExit (SYS_ERROR, TER_THREAD_MSG);
         }
     }
-  try
-    {
+  else{
       terminateAll ();
-    }
-  catch (std::exception)
-    {
-      fprintf (stderr, SYS_ERROR,
-               "problem clearing, couldn't trminate ""all\n");
-      exit (1);
-    }
+  }
+//  catch (std::exception)
+//    {
+//      fprintf (stderr, SYS_ERROR,
+//               "problem clearing, couldn't trminate ""all\n");
+//      exit (1);
+//    }
   exit (0);
 }
 
 int ThreadManager::terminateAll ()
 {
-  for (auto const &thrd: m_threads)
-    {
-      delete (thrd.second);
+    auto tmp = this->m_threads.begin();
+    for(;tmp != this->m_threads.end(); tmp ++){
+        delete tmp->second;
+        tmp->second = nullptr;
     }
-  m_threads.clear ();
+
   m_ready_threads.clear ();
+    return SUCCESS;
 }
 
 int ThreadManager::terminateByState (int tid)
@@ -304,7 +304,9 @@ int ThreadManager::terminateByState (int tid)
       fprintf (stderr, LIB_ERROR, EXIST_THREAD_MSG);
       return FAILURE;
     }
+
   UThread *to_terminate = tmp->second; //if tid not in map throw error
+  m_threads.erase (tid);
   if (to_terminate == nullptr)
     {
       fprintf (stderr, LIB_ERROR, EXIST_THREAD_MSG);
@@ -312,6 +314,7 @@ int ThreadManager::terminateByState (int tid)
     }
   m_available_id[tid] = 0;
   int thread_state = to_terminate->getState ();
+
   if (thread_state == THREAD_READY)
     m_ready_threads.remove (to_terminate);
   else if (thread_state == THREAD_SLEEPING_BLOCKED ||
@@ -320,10 +323,11 @@ int ThreadManager::terminateByState (int tid)
   else if (thread_state == THREAD_RUNNING)
     {
       //++m_total_num_of_quantum;
+      m_current_thread = nullptr;
       switchThread ();
     }
   delete (to_terminate);
-  m_threads.erase (tid);
+  to_terminate = nullptr;
   return SUCCESS;
 }
 
@@ -351,7 +355,7 @@ void ThreadManager::updateSleepTime ()
   for (const auto &thread: m_sleeping_threads)
     {
       thread.second->decreaseTimeLeft ();
-      if (thread.second->getQuantumSleep () <= 0)
+      if (thread.second->getQuantumSleep () == 0)
         {
           if (thread.second->getState () != THREAD_SLEEPING_BLOCKED)
             {
@@ -402,6 +406,7 @@ bool ThreadManager::isExistThread(int tid){
   if (tmp == m_threads.end ())
     {
       fprintf (stderr, LIB_ERROR, EXIST_THREAD_MSG);
-      return FAILURE;
+      return false;
     }
+  return true;
 }

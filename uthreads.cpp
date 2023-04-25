@@ -98,6 +98,11 @@ int uthread_block (int tid)
       thread_manager->timerStatus (SIG_UNBLOCK);
       return FAILURE;
     }
+  if(!thread_manager->isExistThread(tid)){
+    fprintf (stderr, "thread library error: thread doesn't exist\n");
+    thread_manager->timerStatus (SIG_UNBLOCK);
+    return FAILURE;
+  }
   thread_manager->blockThread (tid);
   thread_manager->timerStatus (SIG_UNBLOCK);
   return SUCCESS;
@@ -114,8 +119,12 @@ int uthread_block (int tid)
 int uthread_resume (int tid)
 {
   thread_manager->timerStatus (SIG_BLOCK);
-  thread_manager->resume (tid);
+  if(thread_manager->resume (tid) == FAILURE){
+      thread_manager->timerStatus (SIG_UNBLOCK);
+      return FAILURE;
+  }
   thread_manager->timerStatus (SIG_UNBLOCK);
+  return SUCCESS;
 }
 
 /**
@@ -137,7 +146,7 @@ int uthread_terminate (int tid)
 
   if (tid == 0)
     {
-      delete (thread_manager);
+      //delete (thread_manager);
       thread_manager->timerStatus (SIG_UNBLOCK);
       exit (0);
     }
@@ -204,6 +213,7 @@ int uthread_get_quantums (int tid)
   if(!thread_manager->isExistThread(tid)){
       fprintf (stderr,"thread library error: "
                       "thread library error:no thread with given tid\n");
+      return FAILURE;
   }
 
   UThread *u_thread = thread_manager->getThreadById (tid);

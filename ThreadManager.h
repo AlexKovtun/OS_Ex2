@@ -8,6 +8,7 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <string>
 #include "UThread.h"
 #include "uthreads.h"
@@ -20,7 +21,7 @@
 class ThreadManager
 {
  private:
-  std::map<int, UThread *> m_threads;
+  std::unordered_map<int, UThread *> m_threads;
   std::map<int, UThread *> m_sleeping_threads;
   std::list<UThread *> m_ready_threads;
   std::vector<int> m_available_id;
@@ -33,8 +34,6 @@ class ThreadManager
   int terminateAll ();
 
  public:
-  std::map<int, UThread *> getThreads ()
-  { return m_threads; }
   void switchThread ();
   ThreadManager (int num_quantums);
   int createThread (int tid, thread_entry_point entry_point);

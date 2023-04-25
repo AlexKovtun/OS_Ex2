@@ -10,7 +10,7 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <unistd.h>
-
+#include "uthreads.h"
 
 
 
@@ -58,7 +58,7 @@ struct UThread {
  private:
   int m_tid;
   int m_state;
-  char *m_stack;
+  char m_stack[STACK_SIZE];
   int m_stack_size;
   int m_quantum_left_sleep;
   sigjmp_buf m_env;
