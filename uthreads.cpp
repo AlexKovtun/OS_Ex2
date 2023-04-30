@@ -99,7 +99,7 @@ int uthread_block (int tid)
       return FAILURE;
     }
   if(!thread_manager->isExistThread(tid)){
-    fprintf (stderr, "thread library error: thread doesn't exist\n");
+    //fprintf (stderr, "thread library error: thread doesn't exist\n");
     thread_manager->timerStatus (SIG_UNBLOCK);
     return FAILURE;
   }
@@ -211,8 +211,8 @@ int uthread_get_quantums (int tid)
   if(thread_manager->isValidId (tid) == FAILURE)
     return FAILURE;
   if(!thread_manager->isExistThread(tid)){
-      fprintf (stderr,"thread library error: "
-                      "thread library error:no thread with given tid\n");
+//      fprintf (stderr,"thread library error: "
+//                      "thread library error:no thread with given tid\n");
       return FAILURE;
   }
 

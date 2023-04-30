@@ -221,7 +221,7 @@ int ThreadManager::resume (int tid)
       return FAILURE;
     }
   if(!isExistThread(tid)){
-      fprintf(stderr,LIB_ERROR,EXIST_THREAD_MSG);
+      //fprintf(stderr,LIB_ERROR,EXIST_THREAD_MSG);
       return FAILURE;
   }
   UThread *resume_thread = getThreadById (tid);
